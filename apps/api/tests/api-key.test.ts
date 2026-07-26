@@ -2,11 +2,15 @@ import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import type { Server } from 'node:http'
 import app from '../src/app.js'
+import { createTestApiKeyHeader } from './helpers/apiKey.js'
 
 let server: Server
 let baseUrl: string
+let validApiKeyHeader: string
 
 before(async () => {
+  process.env.LENDER_API_KEY_SALT = process.env.LENDER_API_KEY_SALT || 'test-salt-key-minimum-32-characters-long'
+  validApiKeyHeader = await createTestApiKeyHeader()
   await new Promise<void>((resolve) => {
     server = app.listen(0, () => resolve())
   })
@@ -52,7 +56,7 @@ test('POST /api/v1/lender/tokens/:token_id/lock returns 401 without X-API-Key he
 // JWT pipeline is unaffected by the lender-side change.
 test('GET /api/v1/lender/farmers/:farmer_id/collateral returns 200 with X-API-Key header', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/farmers/123/collateral`, {
-    headers: { 'X-API-Key': 'test-key' },
+    headers: { 'X-API-Key': validApiKeyHeader },
   })
   assert.equal(res.status, 200)
   const body = (await res.json()) as { success?: unknown }
@@ -61,7 +65,7 @@ test('GET /api/v1/lender/farmers/:farmer_id/collateral returns 200 with X-API-Ke
 
 test('GET /api/v1/lender/tokens/:token_id/verify returns 200 with X-API-Key header', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/tokens/123/verify`, {
-    headers: { 'X-API-Key': 'test-key' },
+    headers: { 'X-API-Key': validApiKeyHeader },
   })
   assert.equal(res.status, 200)
   const body = (await res.json()) as { success?: unknown }
@@ -71,7 +75,7 @@ test('GET /api/v1/lender/tokens/:token_id/verify returns 200 with X-API-Key head
 test('POST /api/v1/lender/tokens/:token_id/lock returns 200 with X-API-Key header', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/tokens/123/lock`, {
     method: 'POST',
-    headers: { 'X-API-Key': 'test-key', 'Content-Type': 'application/json' },
+    headers: { 'X-API-Key': validApiKeyHeader, 'Content-Type': 'application/json' },
     body: JSON.stringify({ lender_id: 'lender-1', loan_reference: 'LOAN-001' }),
   })
   assert.equal(res.status, 200)
