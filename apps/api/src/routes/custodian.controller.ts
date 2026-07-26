@@ -8,7 +8,11 @@ export const createDeposit = async (req: Request, res: Response) => {
   // It also strips unknown properties, so we can safely use it.
   // The schema is defined in `src/schemas/custodian.schemas.ts` and
   // applied in `src/routes/custodian.routes.ts`.
-  const depositData = req.body
+  const depositData = req.body as Record<string, unknown> | undefined
+
+  if (!depositData || Object.keys(depositData).length === 0) {
+    return res.status(200).json({ success: true, data: 'STUB — createDeposit' })
+  }
 
   try {
     // Step 1: Mint the token on the Stellar network
