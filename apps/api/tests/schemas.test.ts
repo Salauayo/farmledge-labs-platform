@@ -3,12 +3,16 @@ import assert from 'node:assert/strict'
 import type { Server } from 'node:http'
 import app from '../src/app.js'
 import { signToken } from '../src/lib/jwt.js'
+import { createTestApiKeyHeader } from './helpers/apiKey.js'
 
 let server: Server
 let baseUrl: string
+let validApiKeyHeader: string
 const validToken = signToken({ sub: 'test-user', role: 'farmer' })
 
 before(async () => {
+  process.env.LENDER_API_KEY_SALT = process.env.LENDER_API_KEY_SALT || 'test-salt-key-minimum-32-characters-long'
+  validApiKeyHeader = await createTestApiKeyHeader()
   await new Promise<void>((resolve) => {
     server = app.listen(0, () => resolve())
   })
@@ -49,7 +53,7 @@ test('test_transfer_schema_invalid — missing field returns 400 with readable e
 test('test_lock_schema_valid — valid body passes through to stub handler', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/tokens/test-token/lock`, {
     method: 'POST',
-    headers: { 'X-API-Key': 'test-key', 'Content-Type': 'application/json' },
+    headers: { 'X-API-Key': validApiKeyHeader, 'Content-Type': 'application/json' },
     body: JSON.stringify({ lender_id: 'lender-1', loan_reference: 'LOAN-001' }),
   })
   assert.equal(res.status, 200)
@@ -60,7 +64,7 @@ test('test_lock_schema_valid — valid body passes through to stub handler', asy
 test('test_lock_schema_invalid — missing field returns 400 with readable error', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/tokens/test-token/lock`, {
     method: 'POST',
-    headers: { 'X-API-Key': 'test-key', 'Content-Type': 'application/json' },
+    headers: { 'X-API-Key': validApiKeyHeader, 'Content-Type': 'application/json' },
     body: JSON.stringify({ lender_id: 'lender-1' }),
   })
   assert.equal(res.status, 400)

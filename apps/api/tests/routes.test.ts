@@ -3,12 +3,16 @@ import assert from 'node:assert/strict'
 import type { Server } from 'node:http'
 import app from '../src/app.js'
 import { signToken } from '../src/lib/jwt.js'
+import { createTestApiKeyHeader } from './helpers/apiKey.js'
 
 let server: Server
 let baseUrl: string
+let validApiKeyHeader: string
 const validToken = signToken({ sub: 'test-user', role: 'farmer' })
 
 before(async () => {
+  process.env.LENDER_API_KEY_SALT = process.env.LENDER_API_KEY_SALT || 'test-salt-key-minimum-32-characters-long'
+  validApiKeyHeader = await createTestApiKeyHeader()
   await new Promise<void>((resolve) => {
     server = app.listen(0, () => resolve())
   })
@@ -93,7 +97,7 @@ test('GET /api/v1/certificates/test-token returns 200 PDF response', async () =>
 
 test('GET /api/v1/lender/farmers/test-farmer/collateral returns 200 stub response', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/farmers/test-farmer/collateral`, {
-    headers: { 'X-API-Key': 'test-key' },
+    headers: { 'X-API-Key': validApiKeyHeader },
   })
   assert.equal(res.status, 200)
   const body = await res.json()
@@ -102,7 +106,7 @@ test('GET /api/v1/lender/farmers/test-farmer/collateral returns 200 stub respons
 
 test('GET /api/v1/lender/tokens/test-token/verify returns 200 stub response', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/tokens/test-token/verify`, {
-    headers: { 'X-API-Key': 'test-key' },
+    headers: { 'X-API-Key': validApiKeyHeader },
   })
   assert.equal(res.status, 200)
   const body = await res.json()
@@ -112,7 +116,7 @@ test('GET /api/v1/lender/tokens/test-token/verify returns 200 stub response', as
 test('POST /api/v1/lender/tokens/test-token/lock returns 200 stub response', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/tokens/test-token/lock`, {
     method: 'POST',
-    headers: { 'X-API-Key': 'test-key', 'Content-Type': 'application/json' },
+    headers: { 'X-API-Key': validApiKeyHeader, 'Content-Type': 'application/json' },
     body: JSON.stringify({ lender_id: 'lender-1', loan_reference: 'LOAN-001' }),
   })
   assert.equal(res.status, 200)

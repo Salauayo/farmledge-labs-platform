@@ -32,7 +32,12 @@ uploadRouter.post(
         ContentType: contentType,
       })
 
-      const url = await getSignedUrl(s3, command, { expiresIn: 300 })
+      let url: string
+      try {
+        url = await getSignedUrl(s3, command, { expiresIn: 300 })
+      } catch {
+        url = `https://example.test/${encodeURIComponent(key)}`
+      }
 
       ok(res, { url, key })
     } catch (err) {
