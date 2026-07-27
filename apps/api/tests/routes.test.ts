@@ -81,13 +81,14 @@ test('POST /api/v1/transfers returns 200 stub response', async () => {
   assert.deepEqual(body, { success: true, data: 'STUB — createTransfer' })
 })
 
-test('GET /api/v1/certificates/test-token returns 200 stub response', async () => {
+test('GET /api/v1/certificates/test-token returns 200 PDF response', async () => {
   const res = await fetch(`${baseUrl}/api/v1/certificates/test-token`, {
     headers: { 'Authorization': `Bearer ${validToken}` },
   })
   assert.equal(res.status, 200)
-  const body = await res.json()
-  assert.deepEqual(body, { success: true, data: 'STUB — getCertificate' })
+  assert.match(res.headers.get('content-type') ?? '', /application\/pdf/)
+  const buffer = Buffer.from(await res.arrayBuffer())
+  assert.equal(buffer.subarray(0, 5).toString('ascii'), '%PDF-')
 })
 
 test('GET /api/v1/lender/farmers/test-farmer/collateral returns 200 stub response', async () => {

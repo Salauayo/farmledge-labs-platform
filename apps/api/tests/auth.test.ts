@@ -144,6 +144,7 @@ test('GET /api/v1/certificates/:token_id returns 200 with auth header', async ()
     headers: { 'Authorization': `Bearer ${validToken}` },
   })
   assert.equal(res.status, 200)
-  const body = (await res.json()) as { success?: unknown }
-  assert.equal(body.success, true)
+  assert.match(res.headers.get('content-type') ?? '', /application\/pdf/)
+  const buffer = Buffer.from(await res.arrayBuffer())
+  assert.equal(buffer.subarray(0, 5).toString('ascii'), '%PDF-')
 })
