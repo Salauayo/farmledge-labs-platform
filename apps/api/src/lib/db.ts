@@ -26,6 +26,19 @@ if (process.env.NODE_ENV !== 'production' && clientInstance) {
 }
 
 const fallbackApiKeys = new Map<string, any>()
+const fallbackLenders = new Map<string, any>()
+
+export function seedLenderRecord(record: { id: string; companyName?: string; contactEmail?: string; approved?: boolean }) {
+  const normalized = {
+    companyName: 'Test Lender',
+    contactEmail: `${record.id}@test.com`,
+    approved: true,
+    createdAt: new Date(),
+    ...record,
+  }
+  fallbackLenders.set(normalized.id, normalized)
+  return normalized
+}
 
 export function seedApiKeyRecord(record: { id?: string; keyHash: string; lenderId?: string; label?: string; revokedAt?: Date | null; lastUsedAt?: Date | null }) {
   const normalized = {
@@ -81,6 +94,22 @@ export const db: PrismaClient = new Proxy({} as any, {
             return await clientInstance?.apiKey?.create?.(args)
           } catch (error) {
             return seedApiKeyRecord(args?.data)
+          }
+        },
+      }
+    }
+
+    if (prop === 'lender') {
+      return {
+        findUnique: async (args: any) => {
+          try {
+            return await clientInstance?.lender?.findUnique?.(args)
+          } catch (error) {
+            const where = args?.where ?? {}
+            if (typeof where.id === 'string') {
+              return fallbackLenders.get(where.id) ?? null
+            }
+            return null
           }
         },
       }
