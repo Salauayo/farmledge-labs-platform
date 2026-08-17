@@ -1,14 +1,23 @@
 import { type Request, type Response } from 'express'
 import * as stellarService from '../services/stellar.service.js'
 import * as db from '../db/index.js'
-import { type TokenRecord } from '@farmledge/shared'
+import { type TokenRecord, type CommodityType, type Grade } from '@farmledge/shared'
+
+interface DepositBody {
+  farmerId?: string
+  commodity?: CommodityType
+  grade?: Grade
+  bagCount?: number
+  weightPerBagKg?: number
+  warehouseId?: string
+}
 
 export const createDeposit = async (req: Request, res: Response) => {
   // The `validate` middleware has already parsed and validated req.body.
   // It also strips unknown properties, so we can safely use it.
   // The schema is defined in `src/schemas/custodian.schemas.ts` and
   // applied in `src/routes/custodian.routes.ts`.
-  const depositData = req.body as Record<string, unknown> | undefined
+  const depositData = req.body as DepositBody | undefined
 
   if (!depositData || Object.keys(depositData).length === 0) {
     return res.status(200).json({ success: true, data: 'STUB — createDeposit' })
@@ -28,13 +37,13 @@ export const createDeposit = async (req: Request, res: Response) => {
     const newToken: TokenRecord = {
       ...depositData,
       token_id: tokenId,
-      farmer_id: depositData.farmerId,
-      commodity: depositData.commodity,
-      grade: depositData.grade,
-      warehouse_id: depositData.warehouseId,
-      weight_per_bag_kg: depositData.weightPerBagKg,
-      bag_count: depositData.bagCount,
-      total_weight_kg: depositData.bagCount * depositData.weightPerBagKg,
+      farmer_id: depositData.farmerId!,
+      commodity: depositData.commodity!,
+      grade: depositData.grade!,
+      warehouse_id: depositData.warehouseId!,
+      weight_per_bag_kg: depositData.weightPerBagKg!,
+      bag_count: depositData.bagCount!,
+      total_weight_kg: depositData.bagCount! * depositData.weightPerBagKg!,
       tx_hash: txHash,
       // These are placeholders until warehouse/custodian data is available
       warehouse_name: 'Placeholder Warehouse',
