@@ -1,7 +1,5 @@
 import { Router } from 'express'
 import { requireJWT } from '../middleware/auth.middleware.js'
-import { validate } from '../middleware/validate.middleware.js'
-import { TransferSchema } from '../schemas/farmer.schemas.js'
 import { generateWarehouseReceiptPdf } from '../lib/pdf/certificate.js'
 import type { TokenRecord } from '@farmledge/shared'
 
@@ -13,10 +11,6 @@ farmerRouter.get('/farmers/:farmer_id/tokens', requireJWT, (req, res) => {
 
 farmerRouter.get('/farmers/:farmer_id/history', requireJWT, (req, res) => {
   res.status(200).json({ success: true, data: 'STUB — getFarmerHistory' })
-})
-
-farmerRouter.post('/transfers', requireJWT, validate(TransferSchema), (req, res) => {
-  res.status(200).json({ success: true, data: 'STUB — createTransfer' })
 })
 
 farmerRouter.get('/certificates/:token_id', requireJWT, async (req, res) => {

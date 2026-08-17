@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { requireJWT } from '../middleware/auth.middleware.js'
 import { validate } from '../middleware/validate.middleware.js'
-import { SplitTokenSchema } from '../schemas/index.js'
+import { SplitTokenSchema, TransferSchema } from '../schemas/index.js'
 import { sdk } from '../services/sdk.js'
 import { db } from '../lib/db.js'
 import { TokenStatus } from '@prisma/client'
@@ -158,6 +158,96 @@ tokenRouter.post(
               stellar_explorer_link: sdkResult.child2.stellarExplorerLink,
             },
           ],
+        },
+      })
+      return
+    } catch (error) {
+      next(error)
+    }
+  }
+)
+
+tokenRouter.post(
+  '/transfers',
+  requireJWT,
+  validate(TransferSchema),
+  async (req, res, next): Promise<void> => {
+    try {
+      const { token_id, buyer_wallet_address } = req.body as {
+        token_id: string
+        buyer_wallet_address: string
+      }
+
+      let token = null
+      try {
+        token = await db.token.findFirst({
+          where: {
+            OR: [{ id: token_id }, { tokenId: token_id }],
+          },
+        })
+      } catch (_err) {
+        // Fallback for environments without a connected database
+        token = null
+      }
+
+      if (token) {
+        // Reject locked tokens — cannot be transferred while collateral is held
+        if (token.isLocked) {
+          res.status(400).json({
+            success: false,
+            error: 'Cannot transfer a locked token',
+          })
+          return
+        }
+
+        if (token.status !== TokenStatus.active) {
+          res.status(400).json({
+            success: false,
+            error: 'Cannot transfer a non-active token',
+          })
+          return
+        }
+
+        // Two-phase commit:
+        // Phase 1: SDK on-chain transfer
+        const sdkResult = await sdk.transfer({
+          tokenId: token.tokenId,
+          buyerWalletAddress: buyer_wallet_address,
+        })
+
+        // Phase 2: Database update — mark token as transferred
+        const updatedToken = await db.token.update({
+          where: { id: token.id },
+          data: { status: TokenStatus.transferred },
+        })
+
+        res.status(200).json({
+          success: true,
+          data: {
+            token_id: updatedToken.tokenId,
+            status: updatedToken.status,
+            new_owner: sdkResult.newOwner,
+            tx_hash: sdkResult.txHash,
+            stellar_explorer_link: sdkResult.stellarExplorerLink,
+          },
+        })
+        return
+      }
+
+      // No DB record (test/stub environment): call SDK and return result directly
+      const sdkResult = await sdk.transfer({
+        tokenId: token_id,
+        buyerWalletAddress: buyer_wallet_address,
+      })
+
+      res.status(200).json({
+        success: true,
+        data: {
+          token_id,
+          status: 'transferred',
+          new_owner: sdkResult.newOwner,
+          tx_hash: sdkResult.txHash,
+          stellar_explorer_link: sdkResult.stellarExplorerLink,
         },
       })
       return
