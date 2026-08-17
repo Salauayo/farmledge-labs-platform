@@ -74,15 +74,20 @@ test('GET /api/v1/farmers/test-farmer/history returns 200 stub response', async 
   assert.deepEqual(body, { success: true, data: 'STUB — getFarmerHistory' })
 })
 
-test('POST /api/v1/transfers returns 200 stub response', async () => {
+test('POST /api/v1/transfers returns 200 with SDK transfer result', async () => {
   const res = await fetch(`${baseUrl}/api/v1/transfers`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${validToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ token_id: 'KN-2026-000001', buyer_wallet_address: 'GABC...' }),
   })
   assert.equal(res.status, 200)
-  const body = await res.json()
-  assert.deepEqual(body, { success: true, data: 'STUB — createTransfer' })
+  const body = await res.json() as any
+  assert.equal(body.success, true)
+  assert.equal(body.data.token_id, 'KN-2026-000001')
+  assert.equal(body.data.status, 'transferred')
+  assert.equal(body.data.new_owner, 'GABC...')
+  assert.ok(typeof body.data.tx_hash === 'string')
+  assert.ok(typeof body.data.stellar_explorer_link === 'string')
 })
 
 test('GET /api/v1/certificates/test-token returns 200 PDF response', async () => {

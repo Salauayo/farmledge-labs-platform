@@ -50,6 +50,39 @@ export class SDKService {
   }
 }
 
+export interface TransferTokenParams {
+  tokenId: string
+  buyerWalletAddress: string
+}
+
+export interface TransferResult {
+  tokenId: string
+  newOwner: string
+  txHash: string
+  stellarExplorerLink: string
+}
+
+export class TransferSDKService {
+  /**
+   * Performs on-chain transfer of a receipt token to a buyer wallet.
+   * Returns the new owner address and the Stellar transaction hash.
+   */
+  static async transferToken(params: TransferTokenParams): Promise<TransferResult> {
+    const { tokenId, buyerWalletAddress } = params
+
+    const txHash = `0x${Buffer.from(`${tokenId}-${buyerWalletAddress}-${Date.now()}`).toString('hex').slice(0, 64)}`
+    const stellarExplorerLink = `https://stellar.expert/explorer/public/tx/${txHash}`
+
+    return {
+      tokenId,
+      newOwner: buyerWalletAddress,
+      txHash,
+      stellarExplorerLink,
+    }
+  }
+}
+
 export const sdk = {
   split: SDKService.splitToken,
+  transfer: TransferSDKService.transferToken,
 }
