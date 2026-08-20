@@ -1,6 +1,8 @@
 import { type Request, type Response } from 'express'
+import { type Commodity } from '@prisma/client'
 import * as stellarService from '../services/stellar.service.js'
 import * as db from '../db/index.js'
+import { BAG_SIZE_CONFIG } from '../config/bagSizes.js'
 import { type TokenRecord, type CommodityType, type Grade } from '@farmledge/shared'
 
 interface DepositBody {
@@ -10,6 +12,8 @@ interface DepositBody {
   bagCount?: number
   weightPerBagKg?: number
   warehouseId?: string
+  /** Optional scale reading captured at intake; authoritative for total weight when present. */
+  actualWeighedKg?: number
 }
 
 export const createDeposit = async (req: Request, res: Response) => {
@@ -33,6 +37,14 @@ export const createDeposit = async (req: Request, res: Response) => {
       return res.status(200).json({ success: true, data: existingToken })
     }
 
+    // Determine the total weight. A scale reading (actualWeighedKg) is
+    // authoritative when supplied; otherwise derive it from the bag count and
+    // the standard bag size configured for this commodity.
+    const standardKg =
+      BAG_SIZE_CONFIG[depositData.commodity as unknown as Commodity]?.standardKg
+    const totalWeightKg =
+      depositData.actualWeighedKg ?? depositData.bagCount! * standardKg!
+
     // Step 3: If no duplicate, create the new token record in the database.
     const newToken: TokenRecord = {
       ...depositData,
@@ -43,7 +55,7 @@ export const createDeposit = async (req: Request, res: Response) => {
       warehouse_id: depositData.warehouseId!,
       weight_per_bag_kg: depositData.weightPerBagKg!,
       bag_count: depositData.bagCount!,
-      total_weight_kg: depositData.bagCount! * depositData.weightPerBagKg!,
+      total_weight_kg: totalWeightKg,
       tx_hash: txHash,
       // These are placeholders until warehouse/custodian data is available
       warehouse_name: 'Placeholder Warehouse',
