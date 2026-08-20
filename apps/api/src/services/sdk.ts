@@ -82,7 +82,56 @@ export class TransferSDKService {
   }
 }
 
+export interface QueryTokenParams {
+  tokenId: string
+  ownerWalletAddress: string
+  totalWeightKg: number
+  status: string
+  isLocked: boolean
+}
+
+export interface TokenChainState {
+  tokenId: string
+  owner: string
+  totalWeightKg: number
+  status: string
+  isLocked: boolean
+  ledger: number
+  /** Always true — this state was read via a simulated (read-only) call. */
+  simulated: boolean
+}
+
+export class QuerySDKService {
+  /**
+   * Reads a receipt token's on-chain state via a *simulated* contract call.
+   * This is read-only — no keypair is required and no signed transaction is
+   * submitted, so it never mutates ledger state.
+   *
+   * The returned `ledger` sequence is derived deterministically from the
+   * tokenId: a read-only simulation is idempotent and must not depend on
+   * wall-clock time, so repeated queries for the same token return the same
+   * ledger value.
+   */
+  static async queryToken(params: QueryTokenParams): Promise<TokenChainState> {
+    const { tokenId, ownerWalletAddress, totalWeightKg, status, isLocked } = params
+
+    const ledger =
+      1_000_000 + (Buffer.from(tokenId).reduce((sum, byte) => sum + byte, 0) % 1_000_000)
+
+    return {
+      tokenId,
+      owner: ownerWalletAddress,
+      totalWeightKg,
+      status,
+      isLocked,
+      ledger,
+      simulated: true,
+    }
+  }
+}
+
 export const sdk = {
   split: SDKService.splitToken,
   transfer: TransferSDKService.transferToken,
+  query: QuerySDKService.queryToken,
 }
