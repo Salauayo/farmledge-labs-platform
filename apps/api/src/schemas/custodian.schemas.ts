@@ -10,4 +10,7 @@ export const DepositSchema = z.object({
   bagCount: z.number({ required_error: 'bagCount is required' }).int().positive().optional(),
   weightPerBagKg: z.number({ required_error: 'weightPerBagKg is required' }).positive().optional(),
   warehouseId: z.string({ required_error: 'warehouseId is required' }).optional(),
+  // Optional scale reading captured at intake. When present it is authoritative
+  // for total weight; otherwise total weight is derived from the standard bag size.
+  actualWeighedKg: z.number().positive().optional(),
 })
