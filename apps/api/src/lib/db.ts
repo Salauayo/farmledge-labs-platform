@@ -121,6 +121,7 @@ export const db: PrismaClient = new Proxy({} as any, {
         return {
           findFirst: async () => null,
           findUnique: async () => null,
+          findMany: async () => [],
           update: async (args: any) => ({
             id: args?.where?.id || 'mock-id',
             tokenId: args?.where?.tokenId || 'KN-2026-000042',

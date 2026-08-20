@@ -56,13 +56,20 @@ test('GET /api/v1/warehouse/test-warehouse/inventory returns 200 stub response',
   assert.deepEqual(body, { success: true, data: 'STUB — getWarehouseInventory' })
 })
 
-test('GET /api/v1/farmers/test-farmer/tokens returns 200 stub response', async () => {
+test('GET /api/v1/farmers/test-farmer/tokens returns the authenticated farmer\'s tokens', async () => {
   const res = await fetch(`${baseUrl}/api/v1/farmers/test-farmer/tokens`, {
     headers: { 'Authorization': `Bearer ${validToken}` },
   })
   assert.equal(res.status, 200)
   const body = await res.json()
-  assert.deepEqual(body, { success: true, data: 'STUB — getFarmerTokens' })
+  assert.equal(body.success, true)
+  // Query is scoped to the JWT `sub`; with no DB connected in tests this is an empty list.
+  assert.ok(Array.isArray(body.data))
+})
+
+test('GET /api/v1/farmers/:id/tokens without a JWT is rejected', async () => {
+  const res = await fetch(`${baseUrl}/api/v1/farmers/test-farmer/tokens`)
+  assert.equal(res.status, 401)
 })
 
 test('GET /api/v1/farmers/test-farmer/history returns 200 stub response', async () => {
