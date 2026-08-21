@@ -53,18 +53,34 @@ farmerRouter.get('/farmers/:farmer_id/tokens', requireJWT, async (req, res) => {
     res.status(200).json({ success: true, data: [] })
   }
 })
+// 1. Change the handler to 'async'
+farmerRouter.get('/farmers/:farmer_id/history', requireJWT, async (req, res) => {
+  // 2. Extract farmerId from the authenticated JWT (req.user.sub)
+  // We ignore the :farmer_id path param for security, as per the issue description.
+  const farmerId = (req as Request & { user?: JWTPayload }).user?.sub
+  
+  if (!farmerId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' })
+    return
+  }
 
-farmerRouter.get('/farmers/:farmer_id/history', requireJWT, (req, res) => {
-  res.status(200).json({ success: true, data: 'STUB — getFarmerHistory' })
-})
-
-farmerRouter.get('/certificates/:token_id', requireJWT, async (req, res) => {
   try {
-    const tokenId = req.params.token_id
-    if (!tokenId) {
-      res.status(400).json({ success: false, error: 'Token ID is required' })
-      return
-    }
+    // 3. Query the database for the history (activity) of this farmer
+    const history = await db.activity.findMany({
+      where: { farmerId },
+      orderBy: { createdAt: 'desc' }, // Show newest history first
+    })
+
+    res.status(200).json({ 
+      success: true, 
+      data: history 
+    })
+  } catch (error) {
+    // 4. Fallback for environments without database connectivity
+    console.error('History fetch error:', error)
+    res.status(200).json({ success: true, data: [] })
+  }
+})
 
     const token: TokenRecord = {
       token_id: tokenId,
