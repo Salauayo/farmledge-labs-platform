@@ -53,6 +53,7 @@ export class SDKService {
 export interface TransferTokenParams {
   tokenId: string
   buyerWalletAddress: string
+  signature?: string
 }
 
 export interface TransferResult {
