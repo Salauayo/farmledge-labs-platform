@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { requireJWT } from '../middleware/auth.middleware.js'
 import { validate } from '../middleware/validate.middleware.js'
 import { DepositSchema } from '../schemas/index.js'
-import { createDeposit } from './custodian.controller.js'
+import { createDeposit, getWarehouseInventory } from './custodian.controller.js'
 
 export const custodianRouter = Router()
 
@@ -12,6 +12,4 @@ custodianRouter.post('/exits/:token_id', requireJWT, (req, res) => {
   res.status(200).json({ success: true, data: 'STUB — createExit' })
 })
 
-custodianRouter.get('/warehouse/:warehouse_id/inventory', requireJWT, (req, res) => {
-  res.status(200).json({ success: true, data: 'STUB — getWarehouseInventory' })
-})
+custodianRouter.get('/warehouse/:warehouse_id/inventory', requireJWT, getWarehouseInventory)

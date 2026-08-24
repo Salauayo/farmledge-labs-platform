@@ -47,13 +47,15 @@ test('POST /api/v1/exits/test-token returns 200 stub response', async () => {
   assert.deepEqual(body, { success: true, data: 'STUB — createExit' })
 })
 
-test('GET /api/v1/warehouse/test-warehouse/inventory returns 200 stub response', async () => {
+test('GET /api/v1/warehouse/test-warehouse/inventory returns the warehouse inventory', async () => {
   const res = await fetch(`${baseUrl}/api/v1/warehouse/test-warehouse/inventory`, {
     headers: { 'Authorization': `Bearer ${validToken}` },
   })
   assert.equal(res.status, 200)
   const body = await res.json()
-  assert.deepEqual(body, { success: true, data: 'STUB — getWarehouseInventory' })
+  assert.equal(body.success, true)
+  // Query is filtered by warehouseId; with no DB connected in tests this is an empty list.
+  assert.ok(Array.isArray(body.data))
 })
 
 test('GET /api/v1/farmers/test-farmer/tokens returns the authenticated farmer\'s tokens', async () => {
