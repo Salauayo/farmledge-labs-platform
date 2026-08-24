@@ -82,6 +82,14 @@ farmerRouter.get('/farmers/:farmer_id/history', requireJWT, async (req, res) => 
   }
 })
 
+farmerRouter.get('/certificates/:token_id', requireJWT, async (req, res) => {
+  try {
+    const tokenId = req.params.token_id
+    if (!tokenId) {
+      res.status(400).json({ success: false, error: 'Token ID is required' })
+      return
+    }
+
     const token: TokenRecord = {
       token_id: tokenId,
       farmer_id: 'FARMER-001',
