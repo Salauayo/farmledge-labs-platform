@@ -27,6 +27,7 @@ if (process.env.NODE_ENV !== 'production' && clientInstance) {
 
 const fallbackApiKeys = new Map<string, any>()
 const fallbackLenders = new Map<string, any>()
+const fallbackWarehouses = new Map<string, any>()
 
 export function seedLenderRecord(record: { id: string; companyName?: string; contactEmail?: string; approved?: boolean }) {
   const normalized = {
@@ -52,6 +53,32 @@ export function seedApiKeyRecord(record: { id?: string; keyHash: string; lenderI
   }
   fallbackApiKeys.set(normalized.keyHash, normalized)
   return normalized
+}
+
+export function seedWarehouseRecord(record: { id?: string; name?: string; location?: string; state?: string; certified?: boolean; capacityTonnes?: number; custodianWallet?: string }) {
+  const normalized = {
+    id: record.id ?? `warehouse-${fallbackWarehouses.size + 1}`,
+    name: record.name ?? 'Test Warehouse',
+    location: record.location ?? 'Test Location',
+    state: record.state ?? 'Test State',
+    certified: record.certified ?? false,
+    capacityTonnes: record.capacityTonnes ?? 1000,
+    custodianWallet: record.custodianWallet ?? 'GCUSTODIANDEFAULT',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...record,
+  }
+  fallbackWarehouses.set(normalized.id, normalized)
+  fallbackWarehouses.set(normalized.custodianWallet, normalized)
+  return normalized
+}
+
+export function getWarehouseByWallet(wallet: string) {
+  return fallbackWarehouses.get(wallet) ?? null
+}
+
+export function clearWarehouseFallback() {
+  fallbackWarehouses.clear()
 }
 
 export const db: PrismaClient = new Proxy({} as any, {
@@ -115,8 +142,75 @@ export const db: PrismaClient = new Proxy({} as any, {
       }
     }
 
+    if (prop === 'warehouse') {
+      return {
+        findUnique: async (args: any) => {
+          try {
+            return await clientInstance?.warehouse?.findUnique?.(args)
+          } catch (error) {
+            const where = args?.where ?? {}
+            if (typeof where.id === 'string' && fallbackWarehouses.has(where.id)) {
+              return fallbackWarehouses.get(where.id)
+            }
+            if (typeof where.custodianWallet === 'string' && fallbackWarehouses.has(where.custodianWallet)) {
+              return fallbackWarehouses.get(where.custodianWallet)
+            }
+            return null
+          }
+        },
+        findFirst: async (args: any) => {
+          try {
+            return await clientInstance?.warehouse?.findFirst?.(args)
+          } catch (error) {
+            const where = args?.where ?? {}
+            if (typeof where.custodianWallet === 'string' && fallbackWarehouses.has(where.custodianWallet)) {
+              return fallbackWarehouses.get(where.custodianWallet)
+            }
+            return null
+          }
+        },
+        create: async (args: any) => {
+          try {
+            return await clientInstance?.warehouse?.create?.(args)
+          } catch (error) {
+            return seedWarehouseRecord(args?.data)
+          }
+        },
+        findMany: async (args: any) => {
+          try {
+            return await clientInstance?.warehouse?.findMany?.(args)
+          } catch (error) {
+            return Array.from(new Set(fallbackWarehouses.values()))
+          }
+        },
+      }
+    }
+
     if (!clientInstance) {
       // Fallback for tests/environments where Prisma engine binary is not initialized
+      if (prop === 'warehouse') {
+        return {
+          findUnique: async (args: any) => {
+            const where = args?.where ?? {}
+            if (typeof where.id === 'string' && fallbackWarehouses.has(where.id)) {
+              return fallbackWarehouses.get(where.id)
+            }
+            if (typeof where.custodianWallet === 'string' && fallbackWarehouses.has(where.custodianWallet)) {
+              return fallbackWarehouses.get(where.custodianWallet)
+            }
+            return null
+          },
+          findFirst: async (args: any) => {
+            const where = args?.where ?? {}
+            if (typeof where.custodianWallet === 'string' && fallbackWarehouses.has(where.custodianWallet)) {
+              return fallbackWarehouses.get(where.custodianWallet)
+            }
+            return null
+          },
+          create: async (args: any) => seedWarehouseRecord(args?.data),
+          findMany: async () => Array.from(new Set(fallbackWarehouses.values())),
+        }
+      }
       if (prop === 'token') {
         return {
           findFirst: async () => null,

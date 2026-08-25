@@ -2,7 +2,8 @@ import { randomBytes, createHash } from 'node:crypto'
 import { type Request, type Response } from 'express'
 import { env } from '../config/env.js'
 import { db } from '../lib/db.js'
-import { created, badRequest, unauthorized, notFound, serverError } from '../utils/response.js'
+import { created, badRequest, unauthorized, notFound, serverError, ok } from '../utils/response.js'
+import { sdk } from '../services/sdk.js'
 
 /**
  * Hash a raw API key using the same algorithm as requireAPIKey middleware.
@@ -89,3 +90,116 @@ export async function generateApiKey(req: Request, res: Response): Promise<void>
     serverError(res, 'Failed to generate API key')
   }
 }
+
+/**
+ * POST /api/v1/admin/custodians
+ *
+ * CUST-4 — Custodian onboarding endpoint.
+ *
+ * Admin-only endpoint (requires X-Admin-Secret header).
+ * Calls SDK add_custodian() on-chain AND creates the DB record in the same request.
+ *
+ * Critical pattern:
+ * - On-chain transaction succeeds BEFORE writing to the database.
+ * - Uses returned Stellar transaction hash / custodian wallet as idempotency key to prevent duplicate minting.
+ * - If on-chain transaction fails or DB write fails, neither persists.
+ */
+export async function onboardCustodian(req: Request, res: Response): Promise<void> {
+  // 1. Authenticate caller using X-Admin-Secret header
+  const adminSecret = req.headers['x-admin-secret']
+  const secret = Array.isArray(adminSecret) ? adminSecret[0] : adminSecret
+
+  if (!secret || secret !== env.PLATFORM_ADMIN_SECRET) {
+    unauthorized(res)
+    return
+  }
+
+  const body = req.body || {}
+  const name = typeof body.name === 'string' ? body.name.trim() : undefined
+  const location = typeof body.location === 'string' ? body.location.trim() : undefined
+  const state = typeof body.state === 'string' ? body.state.trim() : undefined
+  const certified = Boolean(body.certified)
+  const capacityTonnesInput = body.capacityTonnes ?? body.capacity_tonnes
+  const capacityTonnes = capacityTonnesInput !== undefined ? Number(capacityTonnesInput) : NaN
+  const custodianWallet = typeof (body.custodianWallet ?? body.custodian_wallet ?? body.address ?? body.walletAddress) === 'string'
+    ? (body.custodianWallet ?? body.custodian_wallet ?? body.address ?? body.walletAddress).trim()
+    : undefined
+
+  if (!name || !location || !state || !custodianWallet || isNaN(capacityTonnes) || capacityTonnes <= 0) {
+    badRequest(res, 'Missing or invalid required custodian fields')
+    return
+  }
+
+  try {
+    // 2. Check idempotency: if warehouse with this custodian wallet already exists in DB, return existing record
+    const existingWarehouse = await db.warehouse.findUnique({
+      where: { custodianWallet },
+    })
+
+    if (existingWarehouse) {
+      const sdkResult = await sdk.add_custodian({
+        name,
+        location,
+        state,
+        certified,
+        capacityTonnes,
+        custodianWallet,
+      })
+
+      ok(res, {
+        id: existingWarehouse.id,
+        name: existingWarehouse.name,
+        location: existingWarehouse.location,
+        state: existingWarehouse.state,
+        certified: existingWarehouse.certified,
+        capacityTonnes: existingWarehouse.capacityTonnes,
+        custodianWallet: existingWarehouse.custodianWallet,
+        txHash: sdkResult.txHash,
+        stellarExplorerLink: sdkResult.stellarExplorerLink,
+        createdAt: existingWarehouse.createdAt,
+        updatedAt: existingWarehouse.updatedAt,
+      })
+      return
+    }
+
+    // 3. Call SDK add_custodian() on-chain FIRST
+    const sdkResult = await sdk.add_custodian({
+      name,
+      location,
+      state,
+      certified,
+      capacityTonnes,
+      custodianWallet,
+    })
+
+    // 4. Create DB record AFTER blockchain call succeeds
+    const record = await db.warehouse.create({
+      data: {
+        name,
+        location,
+        state,
+        certified,
+        capacityTonnes,
+        custodianWallet,
+      },
+    })
+
+    // 5. Return 201 Created with data
+    created(res, {
+      id: record.id,
+      name: record.name,
+      location: record.location,
+      state: record.state,
+      certified: record.certified,
+      capacityTonnes: record.capacityTonnes,
+      custodianWallet: record.custodianWallet,
+      txHash: sdkResult.txHash,
+      stellarExplorerLink: sdkResult.stellarExplorerLink,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    })
+  } catch (err: any) {
+    serverError(res, err.message || 'Failed to onboard custodian')
+  }
+}
+

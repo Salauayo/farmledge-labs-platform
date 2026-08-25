@@ -109,7 +109,7 @@ function serializeToken(token: any): TokenRecord {
  * first. A warehouse with no tokens yields an empty array.
  */
 export const getWarehouseInventory = async (req: Request, res: Response) => {
-  const warehouseId = req.params.warehouse_id
+  const warehouseId = req.params.warehouse_id ?? ''
 
   try {
     const tokens = await prisma.token.findMany({

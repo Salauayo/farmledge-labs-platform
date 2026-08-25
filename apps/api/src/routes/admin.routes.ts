@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { generateApiKey } from '../controllers/admin.controller.js'
+import { generateApiKey, onboardCustodian } from '../controllers/admin.controller.js'
 
 export const adminRouter = Router()
 
@@ -12,3 +12,13 @@ export const adminRouter = Router()
  * are consistent with the rest of the API response shape.
  */
 adminRouter.post('/admin/lenders/:id/api-keys', generateApiKey)
+
+/**
+ * POST /api/v1/admin/custodians
+ *
+ * Onboards a new custodian by calling SDK add_custodian() on-chain
+ * and creating the DB record in the same request.
+ * Requires the X-Admin-Secret header to match PLATFORM_ADMIN_SECRET.
+ */
+adminRouter.post('/admin/custodians', onboardCustodian)
+

@@ -14,3 +14,14 @@ export const DepositSchema = z.object({
   // for total weight; otherwise total weight is derived from the standard bag size.
   actualWeighedKg: z.number().positive().optional(),
 })
+
+export const OnboardCustodianSchema = z.object({
+  name: z.string({ required_error: 'name is required' }).min(1, 'name is required'),
+  location: z.string({ required_error: 'location is required' }).min(1, 'location is required'),
+  state: z.string({ required_error: 'state is required' }).min(1, 'state is required'),
+  certified: z.boolean().optional().default(false),
+  capacityTonnes: z.number({ required_error: 'capacityTonnes is required' }).positive('capacityTonnes must be positive').optional(),
+  capacity_tonnes: z.number().positive().optional(),
+  custodianWallet: z.string().optional(),
+  custodian_wallet: z.string().optional(),
+})
