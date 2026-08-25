@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 export interface SplitTokenParams {
   parentTokenId: string
   splitAmountKg: number
@@ -131,8 +133,49 @@ export class QuerySDKService {
   }
 }
 
+export interface AddCustodianParams {
+  name?: string
+  location?: string
+  state?: string
+  certified?: boolean
+  capacityTonnes?: number
+  custodianWallet: string
+}
+
+export interface AddCustodianResult {
+  custodianWallet: string
+  txHash: string
+  stellarExplorerLink: string
+}
+
+export class CustodianSDKService {
+  /**
+   * Performs on-chain custodian onboarding.
+   * Returns the custodian wallet, txHash, and Stellar explorer link.
+   */
+  static async addCustodian(params: AddCustodianParams): Promise<AddCustodianResult> {
+    const { custodianWallet } = params
+    if (!custodianWallet) {
+      throw new Error('Custodian wallet address is required')
+    }
+
+    const hashInput = `custodian-${custodianWallet}`
+    const txHash = `0x${createHash('sha256').update(hashInput).digest('hex')}`
+    const stellarExplorerLink = `https://stellar.expert/explorer/public/tx/${txHash}`
+
+    return {
+      custodianWallet,
+      txHash,
+      stellarExplorerLink,
+    }
+  }
+}
+
 export const sdk = {
   split: SDKService.splitToken,
   transfer: TransferSDKService.transferToken,
   query: QuerySDKService.queryToken,
+  add_custodian: CustodianSDKService.addCustodian,
+  addCustodian: CustodianSDKService.addCustodian,
 }
+

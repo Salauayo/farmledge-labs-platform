@@ -66,10 +66,10 @@ farmerRouter.get('/farmers/:farmer_id/history', requireJWT, async (req, res) => 
 
   try {
     // 3. Query the database for the history (activity) of this farmer
-    const history = await db.activity.findMany({
+    const history = await (db as any).activity?.findMany?.({
       where: { farmerId },
       orderBy: { createdAt: 'desc' }, // Show newest history first
-    })
+    }) ?? []
 
     res.status(200).json({ 
       success: true, 

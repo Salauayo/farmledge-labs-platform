@@ -74,13 +74,14 @@ test('GET /api/v1/farmers/:id/tokens without a JWT is rejected', async () => {
   assert.equal(res.status, 401)
 })
 
-test('GET /api/v1/farmers/test-farmer/history returns 200 stub response', async () => {
+test('GET /api/v1/farmers/test-farmer/history returns farmer history', async () => {
   const res = await fetch(`${baseUrl}/api/v1/farmers/test-farmer/history`, {
     headers: { 'Authorization': `Bearer ${validToken}` },
   })
   assert.equal(res.status, 200)
-  const body = await res.json()
-  assert.deepEqual(body, { success: true, data: 'STUB — getFarmerHistory' })
+  const body = (await res.json()) as any
+  assert.equal(body.success, true)
+  assert.ok(Array.isArray(body.data))
 })
 
 test('POST /api/v1/transfers returns 200 with SDK transfer result', async () => {
