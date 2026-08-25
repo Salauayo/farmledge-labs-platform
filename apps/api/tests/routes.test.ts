@@ -109,13 +109,17 @@ test('GET /api/v1/certificates/test-token returns 200 PDF response', async () =>
   assert.equal(buffer.subarray(0, 5).toString('ascii'), '%PDF-')
 })
 
-test('GET /api/v1/lender/farmers/test-farmer/collateral returns 200 stub response', async () => {
+test('GET /api/v1/lender/farmers/test-farmer/collateral returns calculated collateral', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/farmers/test-farmer/collateral`, {
     headers: { 'X-API-Key': validApiKeyHeader },
   })
   assert.equal(res.status, 200)
-  const body = await res.json()
-  assert.deepEqual(body, { success: true, data: 'STUB — GET /api/v1/lender/farmers/:farmer_id/collateral' })
+  const body = await res.json() as any
+  assert.equal(body.success, true)
+  assert.equal(body.data.farmer_id, 'test-farmer')
+  assert.equal(body.data.estimatedValueNgn, 0)
+  assert.equal(body.data.price.source, 'placeholder')
+  assert.ok(Array.isArray(body.data.tokens))
 })
 
 test('GET /api/v1/lender/tokens/test-token/verify returns 200 stub response', async () => {
