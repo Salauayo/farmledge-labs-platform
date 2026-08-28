@@ -256,15 +256,14 @@ export const db: PrismaClient = new Proxy({} as any, {
         },
         findMany: async (args: any) => {
           try {
-            return (await activeClient()?.token?.findMany?.(args)) ?? [];
+            return await clientInstance?.token?.findMany?.(args);
           } catch (_error) {
-            return Array.from(fallbackTokens.values()).filter((token: any) => {
-              const where = args?.where ?? {};
-              return (
-                (!where.warehouseId || token.warehouseId === where.warehouseId) &&
-                (!where.status || token.status === where.status)
-              );
-            });
+            const where = args?.where ?? {};
+            return Array.from(new Set(fallbackTokens.values())).filter((token: any) =>
+              (!where.farmerId || token.farmerId === where.farmerId) &&
+              (!where.status || token.status === where.status) &&
+              (where.isLocked === undefined || token.isLocked === where.isLocked),
+            );
           }
         },
         update: async (args: any) => {
