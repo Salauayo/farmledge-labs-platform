@@ -229,6 +229,7 @@ export const db: PrismaClient = new Proxy({} as any, {
     }
 
     if (prop === 'token') {
+      const activeClient = () => globalForPrisma.prisma ?? clientInstance;
       const findFallback = (where: any) => {
         const key = where?.id ?? where?.tokenId ?? where?.txHash;
         if (key) return fallbackTokens.get(key) ?? null;
@@ -241,21 +242,34 @@ export const db: PrismaClient = new Proxy({} as any, {
       return {
         findUnique: async (args: any) => {
           try {
-            return await clientInstance?.token?.findUnique?.(args);
+            return await activeClient()?.token?.findUnique?.(args);
           } catch (_error) {
             return findFallback(args?.where);
           }
         },
         findFirst: async (args: any) => {
           try {
-            return await clientInstance?.token?.findFirst?.(args);
+            return await activeClient()?.token?.findFirst?.(args);
           } catch (_error) {
             return findFallback(args?.where);
           }
         },
+        findMany: async (args: any) => {
+          try {
+            return (await activeClient()?.token?.findMany?.(args)) ?? [];
+          } catch (_error) {
+            return Array.from(fallbackTokens.values()).filter((token: any) => {
+              const where = args?.where ?? {};
+              return (
+                (!where.warehouseId || token.warehouseId === where.warehouseId) &&
+                (!where.status || token.status === where.status)
+              );
+            });
+          }
+        },
         update: async (args: any) => {
           try {
-            return await clientInstance?.token?.update?.(args);
+            return await activeClient()?.token?.update?.(args);
           } catch (_error) {
             const existing = findFallback(args?.where);
             if (!existing) throw new Error('Token not found');
@@ -266,7 +280,7 @@ export const db: PrismaClient = new Proxy({} as any, {
         },
         create: async (args: any) => {
           try {
-            return await clientInstance?.token?.create?.(args);
+            return await activeClient()?.token?.create?.(args);
           } catch (_error) {
             return seedTokenRecord(args?.data ?? {});
           }
