@@ -1,5 +1,4 @@
 import { type Request, type Response } from 'express'
-import type { JWTPayload } from '@farmledge/shared'
 import { db } from '../lib/db.js'
 import { sdk } from '../services/sdk.js'
 
@@ -29,12 +28,8 @@ interface CollateralToken {
   }
 }
 
-function getFarmerId(req: Request): string | undefined {
-  return (req as Request & { user?: JWTPayload }).user?.sub
-}
-
 export async function getFarmerCollateral(req: Request, res: Response): Promise<void> {
-  const farmerId = getFarmerId(req)
+  const farmerId = req.params.farmer_id
   if (!farmerId) {
     res.status(401).json({ success: false, error: 'Unauthorized' })
     return
@@ -152,5 +147,61 @@ export async function unlockToken(req: Request, res: Response): Promise<void> {
   } catch (error) {
     console.error('Failed to unlock token:', error)
     res.status(500).json({ success: false, error: 'Failed to unlock token' })
+  }
+}
+
+export async function lockToken(req: Request, res: Response): Promise<void> {
+  const tokenId = req.params.token_id
+  const { lender_id: lenderId, loan_reference: loanReference } = req.body
+
+  if (!tokenId) {
+    res.status(400).json({ success: false, error: 'Token ID is required' })
+    return
+  }
+
+  try {
+    const token = await db.token.findFirst({
+      where: {
+        OR: [{ id: tokenId }, { tokenId }],
+      },
+    })
+
+    if (!token) {
+      res.status(404).json({ success: false, error: 'Token not found' })
+      return
+    }
+
+    if (token.status !== 'active') {
+      res.status(400).json({ success: false, error: 'Cannot lock a non-active token' })
+      return
+    }
+
+    if (token.isLocked) {
+      res.status(400).json({ success: false, error: 'Token is already locked' })
+      return
+    }
+
+    const lockedToken = await db.token.update({
+      where: { id: token.id },
+      data: {
+        isLocked: true,
+        lockedByLenderId: lenderId,
+        loanReference,
+      },
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token_id: lockedToken.tokenId,
+        status: lockedToken.status,
+        is_locked: lockedToken.isLocked,
+        locked_by_lender_id: lockedToken.lockedByLenderId,
+        loan_reference: lockedToken.loanReference,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to lock token:', error)
+    res.status(500).json({ success: false, error: 'Failed to lock token' })
   }
 }
