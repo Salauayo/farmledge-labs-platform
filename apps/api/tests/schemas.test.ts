@@ -52,15 +52,16 @@ test('test_transfer_schema_invalid — missing field returns 400 with readable e
   assert.match(body.error, /buyer_wallet_address is required/)
 })
 
-test('test_lock_schema_valid — valid body passes through to stub handler', async () => {
+test('test_lock_schema_valid — valid body reaches the lock handler', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/tokens/test-token/lock`, {
     method: 'POST',
     headers: { 'X-API-Key': validApiKeyHeader, 'Content-Type': 'application/json' },
     body: JSON.stringify({ lender_id: 'lender-1', loan_reference: 'LOAN-001' }),
   })
-  assert.equal(res.status, 200)
+  assert.equal(res.status, 404)
   const body = await res.json()
-  assert.deepEqual(body, { success: true, data: 'STUB — POST /api/v1/lender/tokens/:token_id/lock' })
+  assert.equal(body.success, false)
+  assert.equal(body.error, 'Token not found')
 })
 
 test('test_lock_schema_invalid — missing field returns 400 with readable error', async () => {
