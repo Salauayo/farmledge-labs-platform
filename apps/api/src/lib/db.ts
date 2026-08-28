@@ -253,6 +253,16 @@ export const db: PrismaClient = new Proxy({} as any, {
             return findFallback(args?.where);
           }
         },
+        findMany: async (args: any) => {
+          try {
+            return await clientInstance?.token?.findMany?.(args);
+          } catch (_error) {
+            const farmerId = args?.where?.farmerId;
+            return Array.from(new Set(fallbackTokens.values())).filter((token: any) =>
+              !farmerId || token.farmerId === farmerId,
+            );
+          }
+        },
         update: async (args: any) => {
           try {
             return await clientInstance?.token?.update?.(args);
