@@ -137,18 +137,16 @@ test('GET /api/v1/lender/tokens/test-token/verify returns 200 stub response', as
   });
 });
 
-test('POST /api/v1/lender/tokens/test-token/lock returns 200 stub response', async () => {
+test('POST /api/v1/lender/tokens/test-token/lock returns 404 for an unknown token', async () => {
   const res = await fetch(`${baseUrl}/api/v1/lender/tokens/test-token/lock`, {
     method: 'POST',
     headers: { 'X-API-Key': validApiKeyHeader, 'Content-Type': 'application/json' },
     body: JSON.stringify({ lender_id: 'lender-1', loan_reference: 'LOAN-001' }),
   });
-  assert.equal(res.status, 200);
+  assert.equal(res.status, 404);
   const body = await res.json();
-  assert.deepEqual(body, {
-    success: true,
-    data: 'STUB — POST /api/v1/lender/tokens/:token_id/lock',
-  });
+  assert.equal(body.success, false);
+  assert.equal(body.error, 'Token not found');
 });
 
 test('POST /api/v1/tokens/:id/split returns 200 and split child token details', async () => {
