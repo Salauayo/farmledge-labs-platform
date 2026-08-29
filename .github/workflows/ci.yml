@@ -85,9 +85,20 @@ jobs:
             'S3_REGION=us-east-1' \
             > .env
 
-      - name: Run tests
+      - name: Run tests with coverage gate
         working-directory: apps/api
-        run: npm test
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-secret-key-minimum-32-characters-long
+          LENDER_API_KEY_SALT: test-salt-key-minimum-32-characters-long
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DIRECT_URL: postgresql://test:test@localhost:5432/test
+          STELLAR_NETWORK: testnet
+          HORIZON_URL: https://horizon-testnet.stellar.org
+          PLATFORM_ADMIN_SECRET: test-admin-secret-minimum-32-chars
+          S3_BUCKET: test-bucket
+          S3_REGION: us-east-1
+        run: npm run test:coverage
 
   build:
     name: Build
