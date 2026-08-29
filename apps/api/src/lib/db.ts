@@ -26,6 +26,7 @@ const fallbackApiKeys = new Map<string, any>();
 const fallbackLenders = new Map<string, any>();
 const fallbackWarehouses = new Map<string, any>();
 const fallbackTokens = new Map<string, any>();
+const fallbackAuditLogs = new Map<string, any>();
 
 export function seedLenderRecord(record: {
   id: string;
@@ -281,6 +282,31 @@ export const db: PrismaClient = new Proxy({} as any, {
             return await clientInstance?.token?.create?.(args);
           } catch (_error) {
             return seedTokenRecord(args?.data ?? {});
+          }
+        },
+      };
+    }
+
+    if (prop === 'auditLog') {
+      return {
+        create: async (args: any) => {
+          try {
+            return await clientInstance?.auditLog?.create?.(args);
+          } catch (_error) {
+            const record = {
+              id: `audit-${fallbackAuditLogs.size + 1}`,
+              createdAt: new Date(),
+              ...args?.data,
+            };
+            fallbackAuditLogs.set(record.id, record);
+            return record;
+          }
+        },
+        findMany: async (args: any = {}) => {
+          try {
+            return await clientInstance?.auditLog?.findMany?.(args);
+          } catch (_error) {
+            return Array.from(fallbackAuditLogs.values());
           }
         },
       };
