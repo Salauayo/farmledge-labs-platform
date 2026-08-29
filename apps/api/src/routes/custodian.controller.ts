@@ -113,7 +113,7 @@ export const getWarehouseInventory = async (req: Request, res: Response) => {
 
   try {
     const tokens = await prisma.token.findMany({
-      where: { warehouseId },
+      where: { warehouseId, status: 'active' },
       include: { warehouse: true },
       orderBy: { depositDate: 'desc' },
     })
