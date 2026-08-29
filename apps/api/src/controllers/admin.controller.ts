@@ -4,6 +4,8 @@ import { env } from '../config/env.js'
 import { db } from '../lib/db.js'
 import { created, badRequest, unauthorized, notFound, serverError, ok } from '../utils/response.js'
 import { sdk } from '../services/sdk.js'
+import type { z } from 'zod'
+import type { OnboardCustodianSchema } from '../schemas/index.js'
 
 /**
  * Hash a raw API key using the same algorithm as requireAPIKey middleware.
@@ -24,8 +26,8 @@ function hashApiKey(rawKey: string): string {
  * Request headers:
  *   X-Admin-Secret: <PLATFORM_ADMIN_SECRET>
  *
- * Request body (optional):
- *   { "label": "string" }   — human-readable label for the key (defaults to "api-key")
+ * Request body (validated by GenerateApiKeySchema before reaching here):
+ *   { "label"?: "string" }   — human-readable label for the key (defaults to "api-key")
  *
  * Response 201:
  *   { success: true, data: { apiKey: string, keyId: string, lenderId: string, label: string, createdAt: string } }
@@ -50,9 +52,9 @@ export async function generateApiKey(req: Request, res: Response): Promise<void>
     return
   }
 
-  // Optional label from request body
-  const label: string =
-    (req.body as { label?: string } | undefined)?.label?.trim() || 'api-key'
+  // Body has been validated/stripped by GenerateApiKeySchema via validate() middleware.
+  // req.body is either {} or { label: string }.
+  const label: string = (req.body as { label?: string }).label?.trim() || 'api-key'
 
   try {
     // 2. Verify the lender exists
@@ -91,6 +93,8 @@ export async function generateApiKey(req: Request, res: Response): Promise<void>
   }
 }
 
+type OnboardCustodianBody = z.infer<typeof OnboardCustodianSchema>
+
 /**
  * POST /api/v1/admin/custodians
  *
@@ -98,6 +102,10 @@ export async function generateApiKey(req: Request, res: Response): Promise<void>
  *
  * Admin-only endpoint (requires X-Admin-Secret header).
  * Calls SDK add_custodian() on-chain AND creates the DB record in the same request.
+ *
+ * The request body has already been parsed and validated by OnboardCustodianSchema
+ * via the validate() middleware in admin.routes.ts, so no further field extraction
+ * or manual type-checking is needed here.
  *
  * Critical pattern:
  * - On-chain transaction succeeds BEFORE writing to the database.
@@ -114,21 +122,22 @@ export async function onboardCustodian(req: Request, res: Response): Promise<voi
     return
   }
 
-  const body = req.body || {}
-  const name = typeof body.name === 'string' ? body.name.trim() : undefined
-  const location = typeof body.location === 'string' ? body.location.trim() : undefined
-  const state = typeof body.state === 'string' ? body.state.trim() : undefined
-  const certified = Boolean(body.certified)
-  const capacityTonnesInput = body.capacityTonnes ?? body.capacity_tonnes
-  const capacityTonnes = capacityTonnesInput !== undefined ? Number(capacityTonnesInput) : NaN
-  const custodianWallet = typeof (body.custodianWallet ?? body.custodian_wallet ?? body.address ?? body.walletAddress) === 'string'
-    ? (body.custodianWallet ?? body.custodian_wallet ?? body.address ?? body.walletAddress).trim()
-    : undefined
+  // Body has been validated and stripped by OnboardCustodianSchema via validate().
+  // The .refine() on the schema guarantees that either capacityTonnes or
+  // capacity_tonnes is present, and that a wallet field is present.
+  const body = req.body as OnboardCustodianBody
 
-  if (!name || !location || !state || !custodianWallet || isNaN(capacityTonnes) || capacityTonnes <= 0) {
-    badRequest(res, 'Missing or invalid required custodian fields')
-    return
-  }
+  const name = body.name.trim()
+  const location = body.location.trim()
+  const state = body.state.trim()
+  const certified = body.certified ?? false
+  const capacityTonnes = body.capacityTonnes ?? body.capacity_tonnes!
+  const custodianWallet = (
+    body.custodianWallet ??
+    body.custodian_wallet ??
+    body.address ??
+    body.walletAddress!
+  ).trim()
 
   try {
     // 2. Check idempotency: if warehouse with this custodian wallet already exists in DB, return existing record
@@ -202,4 +211,3 @@ export async function onboardCustodian(req: Request, res: Response): Promise<voi
     serverError(res, err.message || 'Failed to onboard custodian')
   }
 }
-
