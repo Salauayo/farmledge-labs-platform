@@ -4,6 +4,7 @@ import type { Server } from 'node:http'
 import app from '../src/app.js'
 import { signToken } from '../src/lib/jwt.js'
 import { BAG_SIZE_CONFIG } from '../src/config/bagSizes.js'
+import { db } from '../src/lib/db.js'
 
 let server: Server
 let baseUrl: string
@@ -67,4 +68,20 @@ test('deposit intake — rejects non-positive actualWeighedKg', async () => {
   assert.equal(res.status, 400)
   const body = (await res.json()) as any
   assert.equal(body.success, false)
+})
+
+test('deposit intake — writes an audit log for the authenticated mutation', async () => {
+  const res = await fetch(`${baseUrl}/api/v1/deposits`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${validToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(baseDeposit),
+  })
+  assert.equal(res.status, 201)
+
+  const auditLogs = await db.auditLog.findMany()
+  assert.ok(auditLogs.some((log) => (
+    log.actorId === 'test-custodian' &&
+    log.actorRole === 'custodian' &&
+    log.action === 'POST /api/v1/deposits'
+  )))
 })
