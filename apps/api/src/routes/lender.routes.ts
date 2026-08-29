@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { requireAPIKey } from '../middleware/auth.middleware.js'
 import { validate } from '../middleware/validate.middleware.js'
-import { LockSchema } from '../schemas/lender.schemas.js'
-import { getFarmerCollateral } from '../controllers/lender.controller.js'
+import { LockSchema, UnlockSchema } from '../schemas/lender.schemas.js'
+import { getFarmerCollateral, lockToken, unlockToken } from '../controllers/lender.controller.js'
 
 export const lenderRouter = Router()
 
@@ -13,5 +13,7 @@ lenderRouter.get('/tokens/:token_id/verify', requireAPIKey, (req, res) => {
 })
 
 lenderRouter.post('/tokens/:token_id/lock', requireAPIKey, validate(LockSchema), (req, res) => {
-  res.status(200).json({ success: true, data: 'STUB — POST /api/v1/lender/tokens/:token_id/lock' })
+  return lockToken(req, res)
 })
+
+lenderRouter.post('/tokens/:token_id/unlock', requireAPIKey, validate(UnlockSchema), unlockToken)

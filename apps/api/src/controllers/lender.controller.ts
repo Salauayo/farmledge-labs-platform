@@ -147,3 +147,115 @@ export async function getFarmerCollateral(req: Request, res: Response): Promise<
     })
   }
 }
+
+export async function unlockToken(req: Request, res: Response): Promise<void> {
+  const tokenId = req.params.token_id
+  const { lender_id: lenderId, loan_reference: loanReference } = req.body
+
+  if (!tokenId) {
+    res.status(400).json({ success: false, error: 'Token ID is required' })
+    return
+  }
+
+  try {
+    const token = await db.token.findFirst({
+      where: {
+        OR: [{ id: tokenId }, { tokenId }],
+      },
+    })
+
+    if (!token) {
+      res.status(404).json({ success: false, error: 'Token not found' })
+      return
+    }
+
+    if (!token.isLocked) {
+      res.status(400).json({ success: false, error: 'Token is not locked' })
+      return
+    }
+
+    if (token.lockedByLenderId !== lenderId || token.loanReference !== loanReference) {
+      res.status(403).json({ success: false, error: 'Token lock does not belong to this loan' })
+      return
+    }
+
+    const unlockedToken = await db.token.update({
+      where: { id: token.id },
+      data: {
+        isLocked: false,
+        lockedByLenderId: null,
+        loanReference: null,
+      },
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token_id: unlockedToken.tokenId,
+        status: unlockedToken.status,
+        is_locked: unlockedToken.isLocked,
+        locked_by_lender_id: unlockedToken.lockedByLenderId,
+        loan_reference: unlockedToken.loanReference,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to unlock token:', error)
+    res.status(500).json({ success: false, error: 'Failed to unlock token' })
+  }
+}
+
+export async function lockToken(req: Request, res: Response): Promise<void> {
+  const tokenId = req.params.token_id
+  const { lender_id: lenderId, loan_reference: loanReference } = req.body
+
+  if (!tokenId) {
+    res.status(400).json({ success: false, error: 'Token ID is required' })
+    return
+  }
+
+  try {
+    const token = await db.token.findFirst({
+      where: {
+        OR: [{ id: tokenId }, { tokenId }],
+      },
+    })
+
+    if (!token) {
+      res.status(404).json({ success: false, error: 'Token not found' })
+      return
+    }
+
+    if (token.status !== 'active') {
+      res.status(400).json({ success: false, error: 'Cannot lock a non-active token' })
+      return
+    }
+
+    if (token.isLocked) {
+      res.status(400).json({ success: false, error: 'Token is already locked' })
+      return
+    }
+
+    const lockedToken = await db.token.update({
+      where: { id: token.id },
+      data: {
+        isLocked: true,
+        lockedByLenderId: lenderId,
+        loanReference,
+      },
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token_id: lockedToken.tokenId,
+        status: lockedToken.status,
+        is_locked: lockedToken.isLocked,
+        locked_by_lender_id: lockedToken.lockedByLenderId,
+        loan_reference: lockedToken.loanReference,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to lock token:', error)
+    res.status(500).json({ success: false, error: 'Failed to lock token' })
+  }
+}

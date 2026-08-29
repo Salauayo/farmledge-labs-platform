@@ -30,6 +30,7 @@ const fallbackApiKeys = new Map<string, any>();
 const fallbackLenders = new Map<string, any>();
 const fallbackWarehouses = new Map<string, any>();
 const fallbackTokens = new Map<string, any>();
+const fallbackAuditLogs = new Map<string, any>();
 
 export function seedLenderRecord(record: {
   id: string;
@@ -320,6 +321,7 @@ if (prop === 'apiKey') {
      * TOKENS
      */
     if (prop === 'token') {
+      const activeClient = () => globalForPrisma.prisma ?? clientInstance;
       const findFallback = (where: any) => {
         const key =
           where?.id ??
@@ -396,7 +398,7 @@ if (prop === 'apiKey') {
       return {
         findUnique: async (args: any) => {
           try {
-            return await clientInstance?.token?.findUnique?.(args);
+            return await activeClient()?.token?.findUnique?.(args);
           } catch (_error) {
             return findFallback(args?.where);
           }
@@ -404,7 +406,7 @@ if (prop === 'apiKey') {
 
         findFirst: async (args: any) => {
           try {
-            return await clientInstance?.token?.findFirst?.(args);
+            return await activeClient()?.token?.findFirst?.(args);
           } catch (_error) {
             return findFallback(args?.where);
           }
@@ -455,7 +457,7 @@ if (prop === 'apiKey') {
 
         update: async (args: any) => {
           try {
-            return await clientInstance?.token?.update?.(args);
+            return await activeClient()?.token?.update?.(args);
           } catch (_error) {
             const existing = findFallback(args?.where);
 
@@ -476,7 +478,7 @@ if (prop === 'apiKey') {
 
         create: async (args: any) => {
           try {
-            return await clientInstance?.token?.create?.(args);
+            return await activeClient()?.token?.create?.(args);
           } catch (_error) {
             return seedTokenRecord(
               args?.data ?? {},
@@ -503,6 +505,31 @@ if (prop === 'apiKey') {
     /*
      * REAL PRISMA CLIENT
      */
+    if (prop === 'auditLog') {
+      return {
+        create: async (args: any) => {
+          try {
+            return await clientInstance?.auditLog?.create?.(args);
+          } catch (_error) {
+            const record = {
+              id: `audit-${fallbackAuditLogs.size + 1}`,
+              createdAt: new Date(),
+              ...args?.data,
+            };
+            fallbackAuditLogs.set(record.id, record);
+            return record;
+          }
+        },
+        findMany: async (args: any = {}) => {
+          try {
+            return await clientInstance?.auditLog?.findMany?.(args);
+          } catch (_error) {
+            return Array.from(fallbackAuditLogs.values());
+          }
+        },
+      };
+    }
+
     if (!clientInstance) {
       return undefined;
     }
